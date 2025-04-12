@@ -1,5 +1,5 @@
-# v1.2.8
+# v1.3.1
 
-## Bug Fixes
+## Fix
 
-- init: 使用ts构建项目
+- 修复在 CSP 页面无法设置 HTML 的问题
