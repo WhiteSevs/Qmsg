@@ -1,7 +1,5 @@
-# v1.3.1
+# v1.3.2
 
 ## Fix
 
-- 修复在 CSP 页面无法设置 innerHTML 的问题
-- 修改代码部分描述
-- 格式化 HTML
+- 修复document.body为空导致插入错误的问题
