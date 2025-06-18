@@ -1,5 +1,9 @@
-# v1.3.2
+# v1.3.8
+
+## Feat
+
+- 使用 Worker-Time 执行
 
 ## Fix
 
-- 修复document.body为空导致插入错误的问题
+- 修复页面切换时关闭.loading 的问题
