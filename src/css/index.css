@@ -95,7 +95,7 @@
 }
 .qmsg .qmsg-icon {
   position: relative;
-  top: 1px;
+  top: 0;
   display: inline-block;
   margin-right: 8px;
   color: inherit;
