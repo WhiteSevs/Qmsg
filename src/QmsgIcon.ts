@@ -1,11 +1,11 @@
-import type { QmsgType } from "./QmsgConfig";
+import type { QmsgType } from './QmsgConfig'
 
 export const QmsgHeaderCloseIcon = /*css*/ `
 	<svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
 		<rect width="48" height="48" fill="white" fill-opacity="0.01"/>
 		<path d="M14 14L34 34" stroke="#909399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 		<path d="M14 34L34 14" stroke="#909399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-	</svg>`;
+	</svg>`
 
 export const QmsgIcon = <Record<QmsgType, string>>{
   info: /*css*/ `
@@ -32,5 +32,5 @@ export const QmsgIcon = <Record<QmsgType, string>>{
 			<path fill="#fff" fill-opacity=".01" d="M0 0h48v48H0z"/>
 			<path d="M4 24c0 11.046 8.954 20 20 20s20-8.954 20-20S35.046 4 24 4" stroke="#409eff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 			<path d="M36 24c0-6.627-5.373-12-12-12s-12 5.373-12 12 5.373 12 12 12" stroke="#409eff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-		</svg>`,
-};
+		</svg>`
+}

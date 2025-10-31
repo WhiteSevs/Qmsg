@@ -1,12 +1,12 @@
-import type { QmsgMsg } from "./QmsgInst";
+import type { QmsgMsg } from './QmsgInst'
 
 /**
  * Qmsg实例存储信息
  */
 export interface QmsgInstStorageInfo {
-  config: string;
-  instance: typeof QmsgMsg.prototype;
-  uuid: string;
+  config: string
+  instance: typeof QmsgMsg.prototype
+  uuid: string
 }
 /**
  * Qmsg实例存储
@@ -24,14 +24,14 @@ export const QmsgInstStorage = {
    * + false 移除失败
    */
   remove(uuid: string) {
-    let flag = false;
+    let flag = false
     for (let index = 0; index < QmsgInstStorage.insInfoList.length; index++) {
       if (QmsgInstStorage.insInfoList[index].uuid === uuid) {
-        QmsgInstStorage.insInfoList.splice(index, 1);
-        flag = true;
-        break;
+        QmsgInstStorage.insInfoList.splice(index, 1)
+        flag = true
+        break
       }
     }
-    return flag;
-  },
-};
+    return flag
+  }
+}

@@ -1,4 +1,4 @@
-import { QmsgInstStorage } from "./QmsgInstStorage";
+import { QmsgInstStorage } from './QmsgInstStorage'
 
 export const QmsgEvent = {
   visibilitychange: {
@@ -10,26 +10,26 @@ export const QmsgEvent = {
        * 如果设置了动画，使用close，否则使用destroy
        */
       callback() {
-        if (document.visibilityState === "visible") {
+        if (document.visibilityState === 'visible') {
           // 回到页面
           for (let index = 0; index < QmsgInstStorage.insInfoList.length; index++) {
-            const qmsgStorageItem = QmsgInstStorage.insInfoList[index];
-            const qmsgInst = qmsgStorageItem.instance;
-            const qmsgSetting = qmsgInst.getSetting();
-            const now = Date.now();
+            const qmsgStorageItem = QmsgInstStorage.insInfoList[index]
+            const qmsgInst = qmsgStorageItem.instance
+            const qmsgSetting = qmsgInst.getSetting()
+            const now = Date.now()
             if (
               // loading类型不被自动关闭
-              qmsgSetting.type !== "loading" &&
+              qmsgSetting.type !== 'loading' &&
               // 必须为自动关闭
               qmsgSetting.autoClose &&
               // 存在启动时间，不存在结束时间（未关闭）
-              typeof qmsgInst.endTime !== "number" &&
-              typeof qmsgInst.startTime === "number" &&
-              typeof qmsgSetting.timeout === "number" &&
+              typeof qmsgInst.endTime !== 'number' &&
+              typeof qmsgInst.startTime === 'number' &&
+              typeof qmsgSetting.timeout === 'number' &&
               now - qmsgInst.startTime >= qmsgSetting.timeout
             ) {
               // 超出时间，关闭
-              qmsgInst.close();
+              qmsgInst.close()
             }
           }
         } else {
@@ -37,21 +37,21 @@ export const QmsgEvent = {
         }
       },
       option: {
-        capture: true,
-      } as AddEventListenerOptions,
+        capture: true
+      } as AddEventListenerOptions
     },
     /**
      * 监听事件
      */
     addEvent() {
-      if ("visibilityState" in document) {
+      if ('visibilityState' in document) {
         document.addEventListener(
-          "visibilitychange",
+          'visibilitychange',
           QmsgEvent.visibilitychange.eventConfig.callback,
           QmsgEvent.visibilitychange.eventConfig.option
-        );
+        )
       } else {
-        console.error("Qmsg addEvent visibilityState not support");
+        console.error('Qmsg addEvent visibilityState not support')
       }
     },
     /**
@@ -59,10 +59,10 @@ export const QmsgEvent = {
      */
     removeEvent() {
       document.removeEventListener(
-        "visibilitychange",
+        'visibilitychange',
         QmsgEvent.visibilitychange.eventConfig.callback,
         QmsgEvent.visibilitychange.eventConfig.option
-      );
-    },
-  },
-};
+      )
+    }
+  }
+}

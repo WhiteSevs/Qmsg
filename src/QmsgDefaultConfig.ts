@@ -1,13 +1,13 @@
-import type { QmsgConfig } from "./QmsgConfig";
+import type { QmsgConfig } from './QmsgConfig'
 
 export const QmsgDefaultConfig = {
   /** 声明插件名称 */
   get PLUGIN_NAME() {
-    return "qmsg";
+    return 'qmsg'
   },
   /** 命名空间，用于css和事件 */
   get NAMESPACE() {
-    return "qmsg";
+    return 'qmsg'
   },
   /** 实例配置的固定的默认值，在初始化时会插入值 */
   INS_DEFAULT: {} as QmsgConfig,
@@ -16,14 +16,14 @@ export const QmsgDefaultConfig = {
     return {
       parent: document.body || document.documentElement,
       useShadowRoot: true,
-      shadowRootMode: "open",
+      shadowRootMode: 'open',
       animation: true,
       autoClose: true,
       listenEventToPauseAutoClose: true,
       listenEventToCloseInstance: true,
-      content: "",
+      content: '',
       isHTML: false,
-      position: "top",
+      position: 'top',
       showClose: false,
       maxNums: 5,
       onClose: null,
@@ -31,15 +31,15 @@ export const QmsgDefaultConfig = {
       showMoreContent: false,
       showReverse: false,
       timeout: 2500,
-      type: "info",
+      type: 'info',
       zIndex: 50000,
-      style: "",
-      customClass: "",
+      style: '',
+      customClass: '',
       isLimitWidth: false,
       limitWidthNum: 200,
-      limitWidthWrap: "no-wrap",
+      limitWidthWrap: 'no-wrap',
       consoleLogContent: false,
-      afterRender: null,
-    };
-  },
-};
+      afterRender: null
+    }
+  }
+}

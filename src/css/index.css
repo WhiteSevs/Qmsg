@@ -1,4 +1,5 @@
 @charset "utf-8";
+
 .qmsg.qmsg-wrapper {
   position: fixed;
   top: 16px;
@@ -18,6 +19,7 @@
   pointer-events: none;
   flex-direction: column;
 }
+
 .qmsg.qmsg-data-position-center,
 .qmsg.qmsg-data-position-left,
 .qmsg.qmsg-data-position-right {
@@ -26,6 +28,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
 }
+
 .qmsg.qmsg-data-position-bottom,
 .qmsg.qmsg-data-position-bottomleft,
 .qmsg.qmsg-data-position-bottomright {
@@ -36,21 +39,25 @@
   left: 50%;
   transform: translate(-50%, 0);
 }
+
 .qmsg.qmsg-data-position-bottomleft .qmsg-item,
 .qmsg.qmsg-data-position-left .qmsg-item,
 .qmsg.qmsg-data-position-topleft .qmsg-item {
   text-align: left;
 }
+
 .qmsg.qmsg-data-position-bottom .qmsg-item,
 .qmsg.qmsg-data-position-center .qmsg-item,
 .qmsg.qmsg-data-position-top .qmsg-item {
   text-align: center;
 }
+
 .qmsg.qmsg-data-position-bottomright .qmsg-item,
 .qmsg.qmsg-data-position-right .qmsg-item,
 .qmsg.qmsg-data-position-topright .qmsg-item {
   text-align: right;
 }
+
 .qmsg .qmsg-item {
   position: relative;
   padding: 8px;
@@ -58,6 +65,7 @@
   -webkit-animation-duration: 0.3s;
   animation-duration: 0.3s;
 }
+
 .qmsg .qmsg-item .qmsg-count {
   position: absolute;
   top: -4px;
@@ -74,9 +82,11 @@
   -webkit-animation-duration: 0.3s;
   animation-duration: 0.3s;
 }
+
 .qmsg .qmsg-item:first-child {
   margin-top: -8px;
 }
+
 .qmsg .qmsg-content {
   position: relative;
   display: inline-block;
@@ -89,13 +99,15 @@
   text-align: center;
   pointer-events: all;
 }
+
 .qmsg .qmsg-content [class^="qmsg-content-"] {
   display: flex;
   align-items: center;
 }
+
 .qmsg .qmsg-icon {
   position: relative;
-  top: 1px;
+  top: 0;
   display: inline-block;
   margin-right: 8px;
   color: inherit;
@@ -109,9 +121,11 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
 .qmsg .qmsg-icon svg {
   display: inline-block;
 }
+
 .qmsg .qmsg-content .qmsg-show-more-content {
   display: flex;
   align-items: center;
@@ -120,9 +134,11 @@
   text-overflow: unset;
   padding-right: unset;
 }
+
 .qmsg .qmsg-content-info .qmsg-icon {
   color: #1890ff;
 }
+
 .qmsg .qmsg-icon-close {
   margin: 0;
   margin-left: 8px;
@@ -135,15 +151,18 @@
   cursor: pointer;
   transition: color 0.3s;
 }
-.qmsg .qmsg-icon-close:hover > svg path {
+
+.qmsg .qmsg-icon-close:hover>svg path {
   stroke: #555;
 }
+
 .qmsg .qmsg-icon-close.qmsg-show-more-content {
   position: unset;
   overflow: unset;
   padding-left: 6px;
   margin-right: 0;
 }
+
 .qmsg .animate-turn {
   animation: MessageTurn 1s linear infinite;
   -webkit-animation: MessageTurn 1s linear infinite;
