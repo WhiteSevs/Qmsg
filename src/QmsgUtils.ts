@@ -1,8 +1,19 @@
 import { QmsgDefaultConfig } from "./QmsgDefaultConfig";
 import { clearInterval, clearTimeout, setInterval, setTimeout } from "worker-timers";
-import type { QmsgConfig } from "./QmsgConfig";
+import type { QmsgConfig } from "./types/config";
 
 export const QmsgUtils = {
+  /**
+   * 转字符串
+   */
+  toStr(target: any) {
+    return JSON.stringify(target, (_key, value) => {
+      if (typeof value === "object" && value != null && value instanceof Node) {
+        return String(value);
+      }
+      return value;
+    });
+  },
   /**
    * 生成带插件名的名称
    * @param args
