@@ -175,244 +175,49 @@ const QmsgInstStorage = {
     },
 };
 
-const createCache = (lastNumberWeakMap) => {
-    return (collection, nextNumber) => {
-        lastNumberWeakMap.set(collection, nextNumber);
-        return nextNumber;
-    };
+const QmsgCoreDefaultApi = {
+    document: document,
+    window: window,
+    globalThis: globalThis,
+    self: self,
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis),
 };
-
-/*
- * The value of the constant Number.MAX_SAFE_INTEGER equals (2 ** 53 - 1) but it
- * is fairly new.
- */
-const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER === undefined ? 9007199254740991 : Number.MAX_SAFE_INTEGER;
-const TWO_TO_THE_POWER_OF_TWENTY_NINE = 536870912;
-const TWO_TO_THE_POWER_OF_THIRTY = TWO_TO_THE_POWER_OF_TWENTY_NINE * 2;
-const createGenerateUniqueNumber = (cache, lastNumberWeakMap) => {
-    return (collection) => {
-        const lastNumber = lastNumberWeakMap.get(collection);
-        /*
-         * Let's try the cheapest algorithm first. It might fail to produce a new
-         * number, but it is so cheap that it is okay to take the risk. Just
-         * increase the last number by one or reset it to 0 if we reached the upper
-         * bound of SMIs (which stands for small integers). When the last number is
-         * unknown it is assumed that the collection contains zero based consecutive
-         * numbers.
-         */
-        let nextNumber = lastNumber === undefined ? collection.size : lastNumber < TWO_TO_THE_POWER_OF_THIRTY ? lastNumber + 1 : 0;
-        if (!collection.has(nextNumber)) {
-            return cache(collection, nextNumber);
+const QmsgCoreApi = Object.assign({}, QmsgCoreDefaultApi);
+const QmsgCore = {
+    init(option) {
+        if (!option) {
+            option = Object.assign({}, QmsgCoreDefaultApi);
         }
-        /*
-         * If there are less than half of 2 ** 30 numbers stored in the collection,
-         * the chance to generate a new random number in the range from 0 to 2 ** 30
-         * is at least 50%. It's benifitial to use only SMIs because they perform
-         * much better in any environment based on V8.
-         */
-        if (collection.size < TWO_TO_THE_POWER_OF_TWENTY_NINE) {
-            while (collection.has(nextNumber)) {
-                nextNumber = Math.floor(Math.random() * TWO_TO_THE_POWER_OF_THIRTY);
-            }
-            return cache(collection, nextNumber);
-        }
-        // Quickly check if there is a theoretical chance to generate a new number.
-        if (collection.size > MAX_SAFE_INTEGER) {
-            throw new Error('Congratulations, you created a collection of unique numbers which uses all available integers!');
-        }
-        // Otherwise use the full scale of safely usable integers.
-        while (collection.has(nextNumber)) {
-            nextNumber = Math.floor(Math.random() * MAX_SAFE_INTEGER);
-        }
-        return cache(collection, nextNumber);
-    };
-};
-
-const LAST_NUMBER_WEAK_MAP = new WeakMap();
-const cache = createCache(LAST_NUMBER_WEAK_MAP);
-const generateUniqueNumber = createGenerateUniqueNumber(cache, LAST_NUMBER_WEAK_MAP);
-
-const createBrokerFactory = (createOrGetOngoingRequests, extendBrokerImplementation, generateUniqueNumber, isMessagePort) => (brokerImplementation) => {
-    const fullBrokerImplementation = extendBrokerImplementation(brokerImplementation);
-    return (sender) => {
-        const ongoingRequests = createOrGetOngoingRequests(sender);
-        sender.addEventListener('message', (({ data: message }) => {
-            const { id } = message;
-            if (id !== null && ongoingRequests.has(id)) {
-                const { reject, resolve } = ongoingRequests.get(id);
-                ongoingRequests.delete(id);
-                if (message.error === undefined) {
-                    resolve(message.result);
-                }
-                else {
-                    reject(new Error(message.error.message));
-                }
-            }
-        }));
-        if (isMessagePort(sender)) {
-            sender.start();
-        }
-        const call = (method, params = null, transferables = []) => {
-            return new Promise((resolve, reject) => {
-                const id = generateUniqueNumber(ongoingRequests);
-                ongoingRequests.set(id, { reject, resolve });
-                if (params === null) {
-                    sender.postMessage({ id, method }, transferables);
-                }
-                else {
-                    sender.postMessage({ id, method, params }, transferables);
-                }
-            });
-        };
-        const notify = (method, params, transferables = []) => {
-            sender.postMessage({ id: null, method, params }, transferables);
-        };
-        let functions = {};
-        for (const [key, handler] of Object.entries(fullBrokerImplementation)) {
-            functions = { ...functions, [key]: handler({ call, notify }) };
-        }
-        return { ...functions };
-    };
-};
-
-const createCreateOrGetOngoingRequests = (ongoingRequestsMap) => (sender) => {
-    if (ongoingRequestsMap.has(sender)) {
-        // @todo TypeScript needs to be convinced that has() works as expected.
-        return ongoingRequestsMap.get(sender);
-    }
-    const ongoingRequests = new Map();
-    ongoingRequestsMap.set(sender, ongoingRequests);
-    return ongoingRequests;
-};
-
-const createExtendBrokerImplementation = (portMap) => (partialBrokerImplementation) => ({
-    ...partialBrokerImplementation,
-    connect: ({ call }) => {
-        return async () => {
-            const { port1, port2 } = new MessageChannel();
-            const portId = await call('connect', { port: port1 }, [port1]);
-            portMap.set(port2, portId);
-            return port2;
-        };
+        Object.assign(QmsgCoreApi, option);
     },
-    disconnect: ({ call }) => {
-        return async (port) => {
-            const portId = portMap.get(port);
-            if (portId === undefined) {
-                throw new Error('The given port is not connected.');
-            }
-            await call('disconnect', { portId });
-        };
+    get document() {
+        return QmsgCoreApi.document;
     },
-    isSupported: ({ call }) => {
-        return () => call('isSupported');
-    }
-});
-
-const isMessagePort = (sender) => {
-    return typeof sender.start === 'function';
+    get window() {
+        return QmsgCoreApi.window;
+    },
+    get globalThis() {
+        return QmsgCoreApi.globalThis;
+    },
+    get self() {
+        return QmsgCoreApi.self;
+    },
+    get setTimeout() {
+        return QmsgCoreApi.setTimeout;
+    },
+    get setInterval() {
+        return QmsgCoreApi.setInterval;
+    },
+    get clearTimeout() {
+        return QmsgCoreApi.clearTimeout;
+    },
+    get clearInterval() {
+        return QmsgCoreApi.clearInterval;
+    },
 };
-
-const createBroker = createBrokerFactory(createCreateOrGetOngoingRequests(new WeakMap()), createExtendBrokerImplementation(new WeakMap()), generateUniqueNumber, isMessagePort);
-
-const createClearIntervalFactory = (scheduledIntervalsState) => (clear) => (timerId) => {
-    if (typeof scheduledIntervalsState.get(timerId) === 'symbol') {
-        scheduledIntervalsState.set(timerId, null);
-        clear(timerId).then(() => {
-            scheduledIntervalsState.delete(timerId);
-        });
-    }
-};
-
-const createClearTimeoutFactory = (scheduledTimeoutsState) => (clear) => (timerId) => {
-    if (typeof scheduledTimeoutsState.get(timerId) === 'symbol') {
-        scheduledTimeoutsState.set(timerId, null);
-        clear(timerId).then(() => {
-            scheduledTimeoutsState.delete(timerId);
-        });
-    }
-};
-
-const createSetIntervalFactory = (generateUniqueNumber, scheduledIntervalsState) => (set) => (func, delay = 0, ...args) => {
-    const symbol = Symbol();
-    const timerId = generateUniqueNumber(scheduledIntervalsState);
-    scheduledIntervalsState.set(timerId, symbol);
-    const schedule = () => set(delay, timerId).then(() => {
-        const state = scheduledIntervalsState.get(timerId);
-        if (state === undefined) {
-            throw new Error('The timer is in an undefined state.');
-        }
-        if (state === symbol) {
-            func(...args);
-            // Doublecheck if the interval should still be rescheduled because it could have been cleared inside of func().
-            if (scheduledIntervalsState.get(timerId) === symbol) {
-                schedule();
-            }
-        }
-    });
-    schedule();
-    return timerId;
-};
-
-const createSetTimeoutFactory = (generateUniqueNumber, scheduledTimeoutsState) => (set) => (func, delay = 0, ...args) => {
-    const symbol = Symbol();
-    const timerId = generateUniqueNumber(scheduledTimeoutsState);
-    scheduledTimeoutsState.set(timerId, symbol);
-    set(delay, timerId).then(() => {
-        const state = scheduledTimeoutsState.get(timerId);
-        if (state === undefined) {
-            throw new Error('The timer is in an undefined state.');
-        }
-        if (state === symbol) {
-            // A timeout can be savely deleted because it is only called once.
-            scheduledTimeoutsState.delete(timerId);
-            func(...args);
-        }
-    });
-    return timerId;
-};
-
-// Prefilling the Maps with a function indexed by zero is necessary to be compliant with the specification.
-const scheduledIntervalsState = new Map([[0, null]]); // tslint:disable-line no-empty
-const scheduledTimeoutsState = new Map([[0, null]]); // tslint:disable-line no-empty
-const createClearInterval = createClearIntervalFactory(scheduledIntervalsState);
-const createClearTimeout = createClearTimeoutFactory(scheduledTimeoutsState);
-const createSetInterval = createSetIntervalFactory(generateUniqueNumber, scheduledIntervalsState);
-const createSetTimeout = createSetTimeoutFactory(generateUniqueNumber, scheduledTimeoutsState);
-const wrap = createBroker({
-    clearInterval: ({ call }) => createClearInterval((timerId) => call('clear', { timerId, timerType: 'interval' })),
-    clearTimeout: ({ call }) => createClearTimeout((timerId) => call('clear', { timerId, timerType: 'timeout' })),
-    setInterval: ({ call }) => createSetInterval((delay, timerId) => call('set', { delay, now: performance.timeOrigin + performance.now(), timerId, timerType: 'interval' })),
-    setTimeout: ({ call }) => createSetTimeout((delay, timerId) => call('set', { delay, now: performance.timeOrigin + performance.now(), timerId, timerType: 'timeout' }))
-});
-const load = (url) => {
-    const worker = new Worker(url);
-    return wrap(worker);
-};
-
-const createLoadOrReturnBroker = (loadBroker, worker) => {
-    let broker = null;
-    return () => {
-        if (broker !== null) {
-            return broker;
-        }
-        const blob = new Blob([worker], { type: 'application/javascript; charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        broker = loadBroker(url);
-        // Bug #1: Edge up until v18 didn't like the URL to be revoked directly.
-        setTimeout(() => URL.revokeObjectURL(url));
-        return broker;
-    };
-};
-
-// This is the minified and stringified code of the worker-timers-worker package.
-const worker = `(()=>{var e={455(e,t){!function(e){"use strict";var t=function(e){return function(t){var r=e(t);return t.add(r),r}},r=function(e){return function(t,r){return e.set(t,r),r}},n=void 0===Number.MAX_SAFE_INTEGER?9007199254740991:Number.MAX_SAFE_INTEGER,o=536870912,s=2*o,a=function(e,t){return function(r){var a=t.get(r),i=void 0===a?r.size:a<s?a+1:0;if(!r.has(i))return e(r,i);if(r.size<o){for(;r.has(i);)i=Math.floor(Math.random()*s);return e(r,i)}if(r.size>n)throw new Error("Congratulations, you created a collection of unique numbers which uses all available integers!");for(;r.has(i);)i=Math.floor(Math.random()*n);return e(r,i)}},i=new WeakMap,u=r(i),c=a(u,i),l=t(c);e.addUniqueNumber=l,e.generateUniqueNumber=c}(t)}},t={};function r(n){var o=t[n];if(void 0!==o)return o.exports;var s=t[n]={exports:{}};return e[n].call(s.exports,s,s.exports,r),s.exports}(()=>{"use strict";const e=-32603,t=-32602,n=-32601,o=(e,t)=>Object.assign(new Error(e),{status:t}),s=t=>o('The handler of the method called "'.concat(t,'" returned an unexpected result.'),e),a=(t,r)=>async({data:{id:a,method:i,params:u}})=>{const c=r[i];try{if(void 0===c)throw(e=>o('The requested method called "'.concat(e,'" is not supported.'),n))(i);const r=void 0===u?c():c(u);if(void 0===r)throw(t=>o('The handler of the method called "'.concat(t,'" returned no required result.'),e))(i);const l=r instanceof Promise?await r:r;if(null===a){if(void 0!==l.result)throw s(i)}else{if(void 0===l.result)throw s(i);const{result:e,transferables:r=[]}=l;t.postMessage({id:a,result:e},r)}}catch(e){const{message:r,status:n=-32603}=e;t.postMessage({error:{code:n,message:r},id:a})}};var i=r(455);const u=new Map,c=(e,r,n)=>({...r,connect:({port:t})=>{t.start();const n=e(t,r),o=(0,i.generateUniqueNumber)(u);return u.set(o,()=>{n(),t.close(),u.delete(o)}),{result:o}},disconnect:({portId:e})=>{const r=u.get(e);if(void 0===r)throw(e=>o('The specified parameter called "portId" with the given value "'.concat(e,'" does not identify a port connected to this worker.'),t))(e);return r(),{result:null}},isSupported:async()=>{if(await new Promise(e=>{const t=new ArrayBuffer(0),{port1:r,port2:n}=new MessageChannel;r.onmessage=({data:t})=>e(null!==t),n.postMessage(t,[t])})){const e=n();return{result:e instanceof Promise?await e:e}}return{result:!1}}}),l=(e,t,r=()=>!0)=>{const n=c(l,t,r),o=a(e,n);return e.addEventListener("message",o),()=>e.removeEventListener("message",o)},d=(e,t)=>r=>{const n=t.get(r);if(void 0===n)return Promise.resolve(!1);const[o,s]=n;return e(o),t.delete(r),s(!1),Promise.resolve(!0)},m=(e,t,r,n)=>(o,s,a)=>{const i=o+s-t.timeOrigin,u=i-t.now();return new Promise(t=>{e.set(a,[r(n,u,i,e,t,a),t])})},f=new Map,h=d(globalThis.clearTimeout,f),p=new Map,v=d(globalThis.clearTimeout,p),w=((e,t)=>{const r=(n,o,s,a)=>{const i=n-e.now();i>0?o.set(a,[t(r,i,n,o,s,a),s]):(o.delete(a),s(!0))};return r})(performance,globalThis.setTimeout),g=m(f,performance,globalThis.setTimeout,w),T=m(p,performance,globalThis.setTimeout,w);l(self,{clear:async({timerId:e,timerType:t})=>({result:await("interval"===t?h(e):v(e))}),set:async({delay:e,now:t,timerId:r,timerType:n})=>({result:await("interval"===n?g:T)(e,t,r)})})})()})();`; // tslint:disable-line:max-line-length
-
-const loadOrReturnBroker = createLoadOrReturnBroker(load, worker);
-const clearInterval = (timerId) => loadOrReturnBroker().clearInterval(timerId);
-const clearTimeout = (timerId) => loadOrReturnBroker().clearTimeout(timerId);
-const setInterval = (...args) => loadOrReturnBroker().setInterval(...args);
-const setTimeout$1 = (...args) => loadOrReturnBroker().setTimeout(...args);
 
 const QmsgUtils = {
     /**
@@ -519,76 +324,44 @@ const QmsgUtils = {
      * 自动使用 Worker 执行 setTimeout
      */
     setTimeout(callback, timeout) {
-        try {
-            return setTimeout$1(callback, timeout);
-        }
-        catch {
-            return globalThis.setTimeout(callback, timeout);
-        }
+        return QmsgCore.setTimeout(callback, timeout);
     },
     /**
      * 配合 QmsgUtils.setTimeout 使用
      */
     clearTimeout(timeId) {
-        try {
-            if (timeId != null) {
-                clearTimeout(timeId);
-            }
-        }
-        catch {
-            // TODO
-        }
-        finally {
-            globalThis.clearTimeout(timeId);
+        if (timeId != null) {
+            QmsgCore.clearTimeout(timeId);
         }
     },
     /**
      * 自动使用 Worker 执行 setInterval
      */
     setInterval(callback, timeout) {
-        try {
-            return setInterval(callback, timeout);
-        }
-        catch {
-            return globalThis.setInterval(callback, timeout);
-        }
+        QmsgCore.setInterval(callback, timeout);
     },
     /**
      * 配合 QmsgUtils.setInterval 使用
      */
     clearInterval(timeId) {
-        try {
-            if (timeId != null) {
-                clearInterval(timeId);
-            }
-        }
-        catch {
-            // TODO
-        }
-        finally {
-            globalThis.clearInterval(timeId);
+        if (timeId != null) {
+            QmsgCore.clearInterval(timeId);
         }
     },
     /**
      * 设置安全的html
      */
     setSafeHTML($el, text) {
-        // 创建 TrustedHTML 策略（需 CSP 允许）
-        try {
-            $el.innerHTML = text;
+        // @ts-expect-error
+        if (globalThis.trustedTypes && typeof globalThis.trustedTypes.createPolicy === "function") {
+            // @ts-expect-error
+            const policy = globalThis.trustedTypes.createPolicy("safe-innerHTML", {
+                createHTML: (html) => html,
+            });
+            $el.innerHTML = policy.createHTML(text);
         }
-        catch {
-            // @ts-ignore
-            if (globalThis.trustedTypes) {
-                // @ts-ignore
-                const policy = globalThis.trustedTypes.createPolicy("safe-innerHTML", {
-                    createHTML: (html) => html,
-                });
-                $el.innerHTML = policy.createHTML(text);
-            }
-            else {
-                throw new Error("QmsgUtils trustedTypes is not defined");
-            }
+        else {
+            $el.innerHTML = text;
         }
     },
 };
@@ -644,9 +417,9 @@ const QmsgAnimation = {
     },
 };
 
-const css_text$1 = "@charset \"utf-8\";\r\n.qmsg.qmsg-wrapper {\r\n  position: fixed;\r\n  top: 16px;\r\n  left: 0;\r\n  z-index: 50000;\r\n  display: flex;\r\n  box-sizing: border-box;\r\n  margin: 0;\r\n  padding: 0;\r\n  width: 100%;\r\n  color: rgba(0, 0, 0, 0.55);\r\n  list-style: none;\r\n  font-variant: tabular-nums;\r\n  font-size: 13px;\r\n  line-height: 1;\r\n  font-feature-settings: \"tnum\";\r\n  pointer-events: none;\r\n  flex-direction: column;\r\n}\r\n.qmsg.qmsg-data-position-center,\r\n.qmsg.qmsg-data-position-left,\r\n.qmsg.qmsg-data-position-right {\r\n  position: fixed;\r\n  top: 50%;\r\n  left: 50%;\r\n  transform: translate(-50%, -50%);\r\n}\r\n.qmsg.qmsg-data-position-bottom,\r\n.qmsg.qmsg-data-position-bottomleft,\r\n.qmsg.qmsg-data-position-bottomright {\r\n  position: fixed;\r\n  top: unset;\r\n  bottom: 0;\r\n  bottom: 8px;\r\n  left: 50%;\r\n  transform: translate(-50%, 0);\r\n}\r\n.qmsg.qmsg-data-position-bottomleft .qmsg-item,\r\n.qmsg.qmsg-data-position-left .qmsg-item,\r\n.qmsg.qmsg-data-position-topleft .qmsg-item {\r\n  text-align: left;\r\n}\r\n.qmsg.qmsg-data-position-bottom .qmsg-item,\r\n.qmsg.qmsg-data-position-center .qmsg-item,\r\n.qmsg.qmsg-data-position-top .qmsg-item {\r\n  text-align: center;\r\n}\r\n.qmsg.qmsg-data-position-bottomright .qmsg-item,\r\n.qmsg.qmsg-data-position-right .qmsg-item,\r\n.qmsg.qmsg-data-position-topright .qmsg-item {\r\n  text-align: right;\r\n}\r\n.qmsg .qmsg-item {\r\n  position: relative;\r\n  padding: 8px;\r\n  text-align: center;\r\n  -webkit-animation-duration: 0.3s;\r\n  animation-duration: 0.3s;\r\n}\r\n.qmsg .qmsg-item .qmsg-count {\r\n  position: absolute;\r\n  top: -4px;\r\n  left: -4px;\r\n  display: inline-block;\r\n  height: 16px;\r\n  min-width: 16px;\r\n  border-radius: 2px;\r\n  background-color: red;\r\n  color: #fff;\r\n  text-align: center;\r\n  font-size: 12px;\r\n  line-height: 16px;\r\n  -webkit-animation-duration: 0.3s;\r\n  animation-duration: 0.3s;\r\n}\r\n.qmsg .qmsg-item:first-child {\r\n  margin-top: -8px;\r\n}\r\n.qmsg .qmsg-content-wrapper {\r\n  position: relative;\r\n  display: inline-block;\r\n  padding: 10px 12px;\r\n  max-width: 80%;\r\n  min-width: 40px;\r\n  border-radius: 4px;\r\n  background: #fff;\r\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);\r\n  text-align: center;\r\n  pointer-events: all;\r\n}\r\n.qmsg .qmsg-content-wrapper .qmsg-content-text[data-limitWidthWrap=\"no-wrap\"] {\r\n  white-space: nowrap;\r\n}\r\n.qmsg .qmsg-content-wrapper .qmsg-content-text[data-limitWidthWrap=\"ellipsis\"] {\r\n  white-space: nowrap;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n}\r\n.qmsg .qmsg-content-wrapper .qmsg-content-text[data-limitWidthWrap=\"wrap\"] {\r\n  white-space: normal;\r\n}\r\n.qmsg .qmsg-content-wrapper [class^=\"qmsg-content-\"]:not(.qmsg-content-text) {\r\n  display: flex;\r\n  align-items: center;\r\n}\r\n.qmsg .qmsg-icon {\r\n  position: relative;\r\n  top: 0;\r\n  display: inline-block;\r\n  margin-right: 8px;\r\n  color: inherit;\r\n  vertical-align: -0.125em;\r\n  text-align: center;\r\n  text-transform: none;\r\n  font-style: normal;\r\n  font-size: 16px;\r\n  line-height: 0;\r\n  text-rendering: optimizeLegibility;\r\n  -webkit-font-smoothing: antialiased;\r\n  -moz-osx-font-smoothing: grayscale;\r\n}\r\n.qmsg .qmsg-icon svg {\r\n  display: inline-block;\r\n}\r\n.qmsg .qmsg-content-info .qmsg-icon {\r\n  color: #1890ff;\r\n}\r\n.qmsg .qmsg-icon-close {\r\n  margin: 0;\r\n  margin-left: 8px;\r\n  padding: 0;\r\n  outline: 0;\r\n  border: none;\r\n  background-color: transparent;\r\n  color: rgba(0, 0, 0, 0.45);\r\n  font-size: 12px;\r\n  cursor: pointer;\r\n  transition: color 0.3s;\r\n}\r\n.qmsg .qmsg-icon-close:hover > svg path {\r\n  stroke: #555;\r\n}\r\n.qmsg .animate-turn {\r\n  animation: MessageTurn 1s linear infinite;\r\n  -webkit-animation: MessageTurn 1s linear infinite;\r\n}\r\n";
+const css_text$1 = "@charset \"utf-8\";\n.qmsg.qmsg-wrapper {\n  position: fixed;\n  top: 16px;\n  left: 0;\n  z-index: 50000;\n  display: flex;\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n  width: 100%;\n  color: rgba(0, 0, 0, 0.55);\n  list-style: none;\n  font-variant: tabular-nums;\n  font-size: 13px;\n  line-height: 1;\n  font-feature-settings: \"tnum\";\n  pointer-events: none;\n  flex-direction: column;\n}\n.qmsg.qmsg-data-position-center,\n.qmsg.qmsg-data-position-left,\n.qmsg.qmsg-data-position-right {\n  position: fixed;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n}\n.qmsg.qmsg-data-position-bottom,\n.qmsg.qmsg-data-position-bottomleft,\n.qmsg.qmsg-data-position-bottomright {\n  position: fixed;\n  top: unset;\n  bottom: 0;\n  bottom: 8px;\n  left: 50%;\n  transform: translate(-50%, 0);\n}\n.qmsg.qmsg-data-position-bottomleft .qmsg-item,\n.qmsg.qmsg-data-position-left .qmsg-item,\n.qmsg.qmsg-data-position-topleft .qmsg-item {\n  text-align: left;\n}\n.qmsg.qmsg-data-position-bottom .qmsg-item,\n.qmsg.qmsg-data-position-center .qmsg-item,\n.qmsg.qmsg-data-position-top .qmsg-item {\n  text-align: center;\n}\n.qmsg.qmsg-data-position-bottomright .qmsg-item,\n.qmsg.qmsg-data-position-right .qmsg-item,\n.qmsg.qmsg-data-position-topright .qmsg-item {\n  text-align: right;\n}\n.qmsg .qmsg-item {\n  position: relative;\n  padding: 8px;\n  text-align: center;\n  -webkit-animation-duration: 0.3s;\n  animation-duration: 0.3s;\n}\n.qmsg .qmsg-item .qmsg-count {\n  position: absolute;\n  top: -4px;\n  left: -4px;\n  display: inline-block;\n  height: 16px;\n  min-width: 16px;\n  border-radius: 2px;\n  background-color: red;\n  color: #fff;\n  text-align: center;\n  font-size: 12px;\n  line-height: 16px;\n  -webkit-animation-duration: 0.3s;\n  animation-duration: 0.3s;\n}\n.qmsg .qmsg-item:first-child {\n  margin-top: -8px;\n}\n.qmsg .qmsg-content-wrapper {\n  position: relative;\n  display: inline-block;\n  padding: 10px 12px;\n  max-width: 80%;\n  min-width: 40px;\n  border-radius: 4px;\n  background: #fff;\n  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);\n  text-align: center;\n  pointer-events: all;\n}\n.qmsg .qmsg-content-wrapper .qmsg-content-text[data-limitWidthWrap=\"no-wrap\"] {\n  white-space: nowrap;\n}\n.qmsg .qmsg-content-wrapper .qmsg-content-text[data-limitWidthWrap=\"ellipsis\"] {\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.qmsg .qmsg-content-wrapper .qmsg-content-text[data-limitWidthWrap=\"wrap\"] {\n  white-space: normal;\n}\n.qmsg .qmsg-content-wrapper [class^=\"qmsg-content-\"]:not(.qmsg-content-text) {\n  display: flex;\n  align-items: center;\n}\n.qmsg .qmsg-icon {\n  position: relative;\n  top: 0;\n  display: inline-block;\n  margin-right: 8px;\n  color: inherit;\n  vertical-align: -0.125em;\n  text-align: center;\n  text-transform: none;\n  font-style: normal;\n  font-size: 16px;\n  line-height: 0;\n  text-rendering: optimizeLegibility;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n.qmsg .qmsg-icon svg {\n  display: inline-block;\n}\n.qmsg .qmsg-content-info .qmsg-icon {\n  color: #1890ff;\n}\n.qmsg .qmsg-icon-close {\n  margin: 0;\n  margin-left: 8px;\n  padding: 0;\n  outline: 0;\n  border: none;\n  background-color: transparent;\n  color: rgba(0, 0, 0, 0.45);\n  font-size: 12px;\n  cursor: pointer;\n  transition: color 0.3s;\n}\n.qmsg .qmsg-icon-close:hover > svg path {\n  stroke: #555;\n}\n.qmsg .animate-turn {\n  animation: MessageTurn 1s linear infinite;\n  -webkit-animation: MessageTurn 1s linear infinite;\n}\n";
 
-const css_text = "@keyframes MessageTurn {\r\n  0% {\r\n    -webkit-transform: rotate(0);\r\n  }\r\n  25% {\r\n    -webkit-transform: rotate(90deg);\r\n  }\r\n  50% {\r\n    -webkit-transform: rotate(180deg);\r\n  }\r\n  75% {\r\n    -webkit-transform: rotate(270deg);\r\n  }\r\n  100% {\r\n    -webkit-transform: rotate(360deg);\r\n  }\r\n}\r\n@-webkit-keyframes MessageTurn {\r\n  0% {\r\n    -webkit-transform: rotate(0);\r\n  }\r\n  25% {\r\n    -webkit-transform: rotate(90deg);\r\n  }\r\n  50% {\r\n    -webkit-transform: rotate(180deg);\r\n  }\r\n  75% {\r\n    -webkit-transform: rotate(270deg);\r\n  }\r\n  100% {\r\n    -webkit-transform: rotate(360deg);\r\n  }\r\n}\r\n@-webkit-keyframes MessageMoveOut {\r\n  0% {\r\n    max-height: 150px;\r\n    opacity: 1;\r\n  }\r\n  to {\r\n    max-height: 0;\r\n    opacity: 0;\r\n  }\r\n}\r\n@keyframes MessageMoveOut {\r\n  0% {\r\n    max-height: 150px;\r\n    opacity: 1;\r\n  }\r\n  to {\r\n    max-height: 0;\r\n    opacity: 0;\r\n  }\r\n}\r\n@-webkit-keyframes MessageMoveIn {\r\n  0% {\r\n    opacity: 0;\r\n    transform: translateY(-100%);\r\n    transform-origin: 0 0;\r\n  }\r\n  to {\r\n    opacity: 1;\r\n    transform: translateY(0);\r\n    transform-origin: 0 0;\r\n  }\r\n}\r\n@keyframes MessageMoveIn {\r\n  0% {\r\n    opacity: 0;\r\n    transform: translateY(-100%);\r\n    transform-origin: 0 0;\r\n  }\r\n  to {\r\n    opacity: 1;\r\n    transform: translateY(0);\r\n    transform-origin: 0 0;\r\n  }\r\n}\r\n@-webkit-keyframes MessageShake {\r\n  0%,\r\n  100% {\r\n    opacity: 1;\r\n    transform: translateX(0);\r\n  }\r\n  25%,\r\n  75% {\r\n    opacity: 0.75;\r\n    transform: translateX(-4px);\r\n  }\r\n  50% {\r\n    opacity: 0.25;\r\n    transform: translateX(4px);\r\n  }\r\n}\r\n@keyframes MessageShake {\r\n  0%,\r\n  100% {\r\n    opacity: 1;\r\n    transform: translateX(0);\r\n  }\r\n  25%,\r\n  75% {\r\n    opacity: 0.75;\r\n    transform: translateX(-4px);\r\n  }\r\n  50% {\r\n    opacity: 0.25;\r\n    transform: translateX(4px);\r\n  }\r\n}\r\n";
+const css_text = "@keyframes MessageTurn {\n  0% {\n    -webkit-transform: rotate(0);\n  }\n  25% {\n    -webkit-transform: rotate(90deg);\n  }\n  50% {\n    -webkit-transform: rotate(180deg);\n  }\n  75% {\n    -webkit-transform: rotate(270deg);\n  }\n  100% {\n    -webkit-transform: rotate(360deg);\n  }\n}\n@-webkit-keyframes MessageTurn {\n  0% {\n    -webkit-transform: rotate(0);\n  }\n  25% {\n    -webkit-transform: rotate(90deg);\n  }\n  50% {\n    -webkit-transform: rotate(180deg);\n  }\n  75% {\n    -webkit-transform: rotate(270deg);\n  }\n  100% {\n    -webkit-transform: rotate(360deg);\n  }\n}\n@-webkit-keyframes MessageMoveOut {\n  0% {\n    max-height: 150px;\n    opacity: 1;\n  }\n  to {\n    max-height: 0;\n    opacity: 0;\n  }\n}\n@keyframes MessageMoveOut {\n  0% {\n    max-height: 150px;\n    opacity: 1;\n  }\n  to {\n    max-height: 0;\n    opacity: 0;\n  }\n}\n@-webkit-keyframes MessageMoveIn {\n  0% {\n    opacity: 0;\n    transform: translateY(-100%);\n    transform-origin: 0 0;\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n    transform-origin: 0 0;\n  }\n}\n@keyframes MessageMoveIn {\n  0% {\n    opacity: 0;\n    transform: translateY(-100%);\n    transform-origin: 0 0;\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n    transform-origin: 0 0;\n  }\n}\n@-webkit-keyframes MessageShake {\n  0%,\n  100% {\n    opacity: 1;\n    transform: translateX(0);\n  }\n  25%,\n  75% {\n    opacity: 0.75;\n    transform: translateX(-4px);\n  }\n  50% {\n    opacity: 0.25;\n    transform: translateX(4px);\n  }\n}\n@keyframes MessageShake {\n  0%,\n  100% {\n    opacity: 1;\n    transform: translateX(0);\n  }\n  25%,\n  75% {\n    opacity: 0.75;\n    transform: translateX(-4px);\n  }\n  50% {\n    opacity: 0.25;\n    transform: translateX(4px);\n  }\n}\n";
 
 const QmsgCSS = {
     css: `
@@ -1209,7 +982,7 @@ const QmsgEvent = {
     },
 };
 
-const version = "1.6.2";
+const version = "1.7.0";
 
 // 执行兼容
 CompatibleProcessing();
